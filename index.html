@@ -3,14 +3,13 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Популярные Люди</title>
+    <title>Общая Галерея Популярных Людей</title>
     <style>
         :root {
             --bg-color: #f4f7f6;
             --card-bg: #ffffff;
             --text-color: #333;
-            --accent-color: #2ecc71;
-            --danger-color: #e74c3c;
+            --accent-color: #3498db;
         }
 
         body {
@@ -35,7 +34,6 @@
             color: #2c3e50;
         }
 
-        /* Форма добавления */
         .form-section {
             background: var(--card-bg);
             padding: 20px;
@@ -62,11 +60,6 @@
             box-sizing: border-box;
         }
 
-        .form-group textarea {
-            resize: vertical;
-            height: 100px;
-        }
-
         button {
             background-color: var(--accent-color);
             color: white;
@@ -79,10 +72,9 @@
         }
 
         button:hover {
-            background-color: #27ae60;
+            background-color: #2980b9;
         }
 
-        /* Сетка карточек */
         .people-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
@@ -124,110 +116,126 @@
             line-height: 1.4;
             flex-grow: 1;
         }
-
-        .delete-btn {
-            background-color: var(--danger-color);
-            margin-top: 15px;
-            font-size: 14px;
-            padding: 5px 10px;
-        }
-
-        .delete-btn:hover {
-            background-color: #c0392b;
-        }
     </style>
 </head>
 <body>
 
 <div class="container">
     <header>
-        <h1>Галерея Популярных Людей</h1>
-        <p>Добавляйте личностей, которые вас вдохновляют, и описывайте причину выбора.</p>
+        <h1>Общая Галерея Популярных Людей</h1>
+        <p>Добавьте запись с фото, и её **сразу же увидят все пользователи** сайта!</p>
     </header>
 
-    <!-- Форма добавления -->
     <section class="form-section">
-        <h2>Добавить нового человека</h2>
+        <h2>Добавить человека в общую базу</h2>
         <form id="personForm">
             <div class="form-group">
                 <label for="name">Имя / Фамилия:</label>
-                <input type="text" id="name" required placeholder="Например: Альберт Эйнштейн">
+                <input type="text" id="name" required placeholder="Например: Стив Джобс">
             </div>
             <div class="form-group">
-                <label for="image">Ссылка на картинку (URL):</label>
-                <input type="url" id="image" required placeholder="https://example.com">
+                <label for="imageFile">Загрузить фото (с устройства):</label>
+                <input type="file" id="imageFile" accept="image/*" required>
             </div>
             <div class="form-group">
                 <label for="reason">Почему вы его/ее добавили?</label>
-                <textarea id="reason" required placeholder="Опишите заслуги или причину вашего выбора..."></textarea>
+                <textarea id="reason" required style="width:100%; height:100px; resize:vertical; padding:10px; border:1px solid #ddd; border-radius:4px; box-sizing:border-box;" placeholder="Ваше описание..."></textarea>
             </div>
-            <button type="submit">Добавить в список</button>
+            <button type="submit" id="submitBtn">Опубликовать для всех</button>
         </form>
     </section>
 
-    <!-- Список карточек -->
     <main class="people-grid" id="peopleGrid"></main>
 </div>
 
-<script>
-    const personForm = document.getElementById('personForm');
-    const peopleGrid = document.getElementById('peopleGrid');
+<!-- Подключаем Firebase SDK через CDN -->
+<script type="module">
+  import { initializeApp } from "https://gstatic.com";
+  import { getDatabase, ref, push, onValue } from "https://gstatic.com";
 
-    // Загрузка данных из localStorage
-    let people = JSON.parse(localStorage.getItem('famousPeople')) || [];
+  // Ваши личные ключи конфигурации Firebase
+  const firebaseConfig = {
+    apiKey: "AIzaSyAeX4umHhqivgsDB0_2PRIUfZWJoNQRjVs",
+    authDomain: "famous-people-db.firebaseapp.com",
+    databaseURL: "https://firebaseio.com",
+    projectId: "famous-people-db",
+    storageBucket: "famous-people-db.firebasestorage.app",
+    messagingSenderId: "1057156016505",
+    appId: "1:1057156016505:web:b98b7a676047fd0eb727a8",
+    measurementId: "G-YZY39T58J9"
+  };
 
-    // Функция для отображения карточек
-    function renderCards() {
-        peopleGrid.innerHTML = '';
-        
-        if (people.length === 0) {
-            peopleGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #777;">Список пока пуст. Добавьте кого-нибудь!</p>';
-            return;
-        }
+  // Инициализация Firebase
+  const app = initializeApp(firebaseConfig);
+  const db = getDatabase(app);
+  const peopleRef = ref(db, 'famousPeople');
 
-        people.forEach((person, index) => {
-            const card = document.createElement('div');
-            card.className = 'card';
-            card.innerHTML = `
-                <img src="${person.image}" alt="${person.name}" onerror="this.src='https://unsplash.com'">
-                <div class="card-content">
-                    <h3 class="card-name">${person.name}</h3>
-                    <p class="card-reason"><strong>Почему здесь:</strong> ${person.reason}</p>
-                    <button class="delete-btn" onclick="deletePerson(${index})">Удалить</button>
-                </div>
-            `;
-            peopleGrid.appendChild(card);
+  const personForm = document.getElementById('personForm');
+  const peopleGrid = document.getElementById('peopleGrid');
+  const submitBtn = document.getElementById('submitBtn');
+
+  // Слушаем изменения в базе данных в реальном времени
+  onValue(peopleRef, (snapshot) => {
+    peopleGrid.innerHTML = '';
+    const data = snapshot.val();
+    
+    if (!data) {
+        peopleGrid.innerHTML = '<p style="grid-column: 1/-1; text-align: center; color: #777;">Никто еще ничего не добавил. Будьте первыми!</p>';
+        return;
+    }
+
+    // Отображаем карточки: новые будут сверху
+    Object.values(data).reverse().forEach(person => {
+        const card = document.createElement('div');
+        card.className = 'card';
+        card.innerHTML = `
+            <img src="${person.image}" alt="${person.name}">
+            <div class="card-content">
+                <h3 class="card-name">${person.name}</h3>
+                <p class="card-reason"><strong>Причина добавления:</strong> ${person.reason}</p>
+            </div>
+        `;
+        peopleGrid.appendChild(card);
+    });
+  });
+
+  // Отправка данных в общую базу
+  personForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const name = document.getElementById('name').value;
+    const reason = document.getElementById('reason').value;
+    const fileInput = document.getElementById('imageFile');
+    const file = fileInput.files[0];
+
+    if (!file) return;
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Публикация...";
+
+    // Конвертируем картинку в строку (Base64) для отправки в базу
+    const reader = new FileReader();
+    reader.onloadend = function() {
+        const base64Image = reader.result;
+
+        // Сохраняем все данные в облако Firebase
+        push(peopleRef, { 
+            name: name, 
+            image: base64Image, 
+            reason: reason 
+        }).then(() => {
+            // Сбрасываем форму после успешной отправки
+            personForm.reset();
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Опубликовать для всех";
+        }).catch((error) => {
+            alert("Ошибка при добавлении: " + error.message);
+            submitBtn.disabled = false;
+            submitBtn.innerText = "Опубликовать для всех";
         });
     }
-
-    // Обработчик отправки формы
-    personForm.addEventListener('submit', (e) => {
-        e.preventDefault();
-
-        const name = document.getElementById('name').value;
-        const image = document.getElementById('image').value;
-        const reason = document.getElementById('reason').value;
-
-        const newPerson = { name, image, reason };
-        people.push(newPerson);
-
-        // Сохраняем в localStorage
-        localStorage.setItem('famousPeople', JSON.stringify(people));
-
-        // Сбрасываем форму и обновляем интерфейс
-        personForm.reset();
-        renderCards();
-    });
-
-    // Функция удаления карточки
-    window.deletePerson = function(index) {
-        people.splice(index, 1);
-        localStorage.setItem('famousPeople', JSON.stringify(people));
-        renderCards();
-    }
-
-    // Инициализация при загрузке страницы
-    renderCards();
+    reader.readAsDataURL(file);
+  });
 </script>
 
 </body>
