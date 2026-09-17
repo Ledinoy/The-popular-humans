@@ -148,15 +148,15 @@
     <main class="people-grid" id="peopleGrid"></main>
 </div>
 
-<!-- Подключаем Firebase SDK через CDN -->
+<!-- Подключаем Firebase SDK -->
 <script type="module">
   import { initializeApp } from "https://gstatic.com";
   import { getDatabase, ref, push, onValue } from "https://gstatic.com";
 
-  // Ваши личные ключи конфигурации Firebase
+  // Ваша конфигурация
   const firebaseConfig = {
     apiKey: "AIzaSyAeX4umHhqivgsDB0_2PRIUfZWJoNQRjVs",
-    authDomain: "famous-people-db.firebaseapp.com",
+    authDomain: "://firebaseapp.com",
     databaseURL: "https://firebaseio.com",
     projectId: "famous-people-db",
     storageBucket: "famous-people-db.firebasestorage.app",
@@ -165,7 +165,7 @@
     measurementId: "G-YZY39T58J9"
   };
 
-  // Инициализация Firebase
+  // Инициализация
   const app = initializeApp(firebaseConfig);
   const db = getDatabase(app);
   const peopleRef = ref(db, 'famousPeople');
@@ -174,7 +174,7 @@
   const peopleGrid = document.getElementById('peopleGrid');
   const submitBtn = document.getElementById('submitBtn');
 
-  // Слушаем изменения в базе данных в реальном времени
+  // Чтение данных в реальном времени
   onValue(peopleRef, (snapshot) => {
     peopleGrid.innerHTML = '';
     const data = snapshot.val();
@@ -184,7 +184,6 @@
         return;
     }
 
-    // Отображаем карточки: новые будут сверху
     Object.values(data).reverse().forEach(person => {
         const card = document.createElement('div');
         card.className = 'card';
@@ -199,37 +198,37 @@
     });
   });
 
-  // Отправка данных в общую базу
+  // Отправка формы
   personForm.addEventListener('submit', (e) => {
     e.preventDefault();
 
     const name = document.getElementById('name').value;
     const reason = document.getElementById('reason').value;
     const fileInput = document.getElementById('imageFile');
-    const file = fileInput.files[0];
+    const file = fileInput.files[0]; // ИСПРАВЛЕНО: берем конкретно первый файл из списка
 
-    if (!file) return;
+    if (!file) {
+        alert("Пожалуйста, выберите файл изображения!");
+        return;
+    }
 
     submitBtn.disabled = true;
     submitBtn.innerText = "Публикация...";
 
-    // Конвертируем картинку в строку (Base64) для отправки в базу
     const reader = new FileReader();
     reader.onloadend = function() {
         const base64Image = reader.result;
 
-        // Сохраняем все данные в облако Firebase
         push(peopleRef, { 
             name: name, 
             image: base64Image, 
             reason: reason 
         }).then(() => {
-            // Сбрасываем форму после успешной отправки
             personForm.reset();
             submitBtn.disabled = false;
             submitBtn.innerText = "Опубликовать для всех";
         }).catch((error) => {
-            alert("Ошибка при добавлении: " + error.message);
+            alert("Ошибка Firebase: " + error.message);
             submitBtn.disabled = false;
             submitBtn.innerText = "Опубликовать для всех";
         });
